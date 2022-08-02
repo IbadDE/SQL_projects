@@ -1,0 +1,404 @@
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="C:/Users/Ibad/Desktop/database.sqlite" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="3"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="150"/><column_width id="3" width="43762"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><current_table name="4,7:mainCountry"/><default_encoding codec=""/><browse_table_settings><table schema="main" name="Country" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_"><sort/><column_widths><column index="1" value="62"/><column index="2" value="114"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table><table schema="main" name="League" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_"><sort/><column_widths><column index="1" value="62"/><column index="2" value="122"/><column index="3" value="238"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table></browse_table_settings></tab_browse><tab_sql><sql name="SQL 1">/* This database is downloaded from kaggle uploaded by HUGO MATHIEN by name European Soccer Database.
+In this Project I will play with overall dataset. In my next project I will ANALYZE only one specific, it
+maybe be Barca or Real madrid or might be both.
+
+But for now let's analyze the overall DATABASE. */
+
+
+
+/* for total matches played */
+SELECT count(*) as Total_matches
+from Match;
+
+
+/* number of mathes played each year */
+SELECT season, count(*) matches_played
+from match
+group by season;
+
+
+
+/* In which month most number of matches has played */
+select strftime('%m', date) as month, count(*) as total_matches
+from Match
+group by month
+order by total_matches desc;
+/* data shows us june and july are resting months for playesr, as there are very less number of matches have been played */
+
+
+
+
+
+
+
+
+/* lets see on which day of week matches has been played a lot */
+select strftime('%w', date) as week_day, count(*) as total_matches
+from Match
+group by week_day
+order by total_matches desc;
+/* sunday is 0, monday is 1 and so on till saturday is 6). we see that on saturday and sunday most of the 
+games has been played. The reason behind is that people can watch game on these two days because of 
+off-office or off-school or universities. */ 
+
+
+
+
+/*let's see number of stages in each country and season */
+SELECT 
+	l.name || ' (' || c.name  || ')' as Name,
+	m.season, max(m.stage) as Stage
+FROM Match as m 
+	JOIN COUNTRY as c
+	ON c.id = m.country_id
+	JOIN League as l
+	ON l.id = m.league_id
+	JOIN Team as t
+	on t.team_api_id = m.home_team_api_id
+group by c.name, m.season;
+/* we can see that maxiumum stages of each league with respect to season are more than 30 EXCEPT
+ for Belgium Jupiler League (Belgium) in season 2013/2014. It seems some of the data has been is missing on that 
+ particular year.*/
+
+
+
+ 
+ 
+/* find all team name w.r.t their country name and league name */
+select 
+	DISTINCT m.home_team_api_id,
+	t.team_long_name,
+	c.name as country_name,
+	l.name as League_name
+from Country as c join match as m
+	on c.id = m.country_id
+	JOIN League as l
+	ON l.id = m.league_id
+	join Team as t
+	on m.home_team_api_id = t.team_api_id
+order by country_name, League_name, t.team_long_name;
+/* this table contain all team name and their respective country name */
+
+
+
+
+/* find number of teams played so far in their country league */
+SELECT 
+	c.name as country_name,
+	count(DISTINCT m.home_team_api_id) AS number_of_Teams
+from Country as c join match as m
+	on c.id = m.country_id
+	JOIN League as l
+	ON l.id = m.league_id
+	join Team as t
+	on m.home_team_api_id = t.team_api_id
+group by country_name;
+
+
+
+
+/* find number of teams played so far in their country league in each season */
+SELECT 
+	c.name,
+	m.season,
+	count(DISTINCT m.home_team_api_id) AS number_of_Teams
+from Country as c join match as m
+	on c.id = m.country_id
+	JOIN League as l
+	ON l.id = m.league_id
+	join Team as t
+	on m.home_team_api_id = t.team_api_id
+group by c.name,m.season;
+
+
+
+/* is there any advantages for team playing on his home ground */
+SELECT 
+	c.name,
+	case when m.home_team_goal &gt; m.away_team_goal Then 'HOME'
+	when m.home_team_goal &lt; m.away_team_goal Then 'AWAY'
+	else 'DRAW' end as VENUE,
+	count(*) as WINS
+FROM Match as m
+	join Country as c
+	on c.id = m.country_id
+group by c.name, VENUE
+order by c.name desc;
+/* In every country Home team has won more than Away team. we can conclude that the home ground has 
+it's advantages on away team. */
+
+
+
+
+
+
+
+/* showing avegrage for different stages of each league */
+select l.name as League_name, m.stage,
+	round(avg(m.away_team_goal + m.home_team_goal),2) as League_avg,
+	round((select avg(away_team_goal + home_team_goal) from Match),2) as Overall
+from match as m
+	join League as l
+	on l.id = m.country_id
+group by l.name, m.stage
+order by l.name, League_avg desc;
+/* this table is good for visualization */
+
+
+
+/* with passing season are total goals in game increase or decrease. */
+select season,
+	round(avg(away_team_goal + home_team_goal),2) as season_avg,
+	round((select avg(away_team_goal + home_team_goal) from Match),2) as Overall
+from match
+group by season
+order by season_avg desc;
+/* we see a trent that with each passing year the numbers of goals in game increase as football
+became more aggressive except the season 2013/2014 */
+
+
+
+
+
+/* does stage have any effect on number of goals in match.*/
+SELECT
+	s.stage,
+	s.avg_goal,
+	round((select avg(away_team_goal + home_team_goal) from match),2) as Overall
+from
+	(select stage, round(avg(away_team_goal + home_team_goal),2) as avg_goal
+	from Match
+	group by stage) as s
+where 
+	s.avg_goal &gt; (select avg(away_team_goal + home_team_goal) from match);
+/* yup, data shows as stage increase the aggression in game increase and teams try to goal to win the title
+in last stages of league. In this query it we have shown only avg goal which are maximun from overall average.
+the most goals have been score at stage 38 with average of 3.09 */
+	
+	
+	
+	
+
+/* avg goal scored in home and away by teams */
+with home as (
+	select 
+		t.team_long_name || ' (' || c.name || ')' as Team_name,
+		avg(m.home_team_goal) as avg_home_Goal
+	from match as m
+		left join Country as c
+		on m.country_id = c.id
+		left join team as t
+		on t.team_api_id = m.home_team_api_id
+	group by Team_name),
+
+away as (
+	select
+		t.team_long_name || ' (' || c.name || ')' as Team_name,
+		avg(m.away_team_goal) as Avg_away_Goal
+	from match as m
+		left join Country as c
+		on m.country_id = c.id
+		left join team as t
+		on t.team_api_id = m.away_team_api_id
+	group by Team_name)
+
+select 
+	home.team_name,
+	round(away.Avg_away_goal,2) as away_avg,
+	round(home.avg_home_goal,2) as home_avg
+from away 
+	left join home 
+	on home.team_name = away.team_name
+group by home.team_name
+order by home.avg_home_goal desc;
+/* with scrolling through the table only few team has score more away average than home average.
+below query will show the name of teams which has more away average than home average.*/
+
+with home as (
+	select 
+		t.team_long_name || ' (' || c.name || ')' as Team_name,
+		avg(m.home_team_goal) as avg_home_Goal
+	from match as m
+		left join Country as c
+		on m.country_id = c.id
+		left join team as t
+		on t.team_api_id = m.home_team_api_id
+	group by Team_name),
+
+away as (
+	select
+		t.team_long_name || ' (' || c.name || ')' as Team_name,
+		avg(m.away_team_goal) as Avg_away_Goal
+	from match as m
+		left join Country as c
+		on m.country_id = c.id
+		left join team as t
+		on t.team_api_id = m.away_team_api_id
+	group by Team_name)
+
+select 
+	home.team_name,
+	round(away.Avg_away_goal,2) as away_avg,
+	round(home.avg_home_goal,2) as home_avg
+from away 
+	left join home 
+	on home.team_name = away.team_name
+where away_avg &gt; home_avg
+group by home.team_name
+order by home.avg_home_goal desc;
+/* name of team who has perfore better on away ground than home ground */
+
+
+
+
+/*most goals in a game */
+select
+	(SELECT t.team_long_name from team as t where main.home_team_api_id = t.team_api_id) as home_team,
+	(SELECT t.team_long_name from team as t where main.away_team_api_id = t.team_api_id)as away_team,
+	home_team_goal,
+	away_team_goal,
+	(home_team_goal + away_team_goal) as Total_goal
+from 
+	match as main
+order by Total_goal desc
+limit 15;
+/* shows the matches with most goals in a game and their respective team. */
+
+
+
+/* how teams have performed on their home ground */
+select 
+	t.team_long_name,
+	count( case when home_team_goal &gt; away_team_goal then 'win' END) as Home_win,
+	count(case when home_team_goal &lt; away_team_goal then 'lost' end) as Home_lost,
+	count(case when home_team_goal = away_team_goal then 'Tie' end) as Tie
+from
+	match as m
+	join team as t
+	on m.home_team_api_id = t.team_api_id 
+group by t.team_long_name
+order by Home_win desc;
+/* barcaelona have toped the table with most wins followed by read madrid. */ 
+
+
+
+
+/* how teams have performed on their away ground */
+select 
+	t.team_long_name,
+	count(case when home_team_goal &lt; away_team_goal then 'win' end) as Away_win,
+	count(case when home_team_goal &gt; away_team_goal then 'lost' end) as Away_lost,
+	count(case when home_team_goal = away_team_goal then 'tie' end) as Tie
+from
+	match as m
+	join team as t
+	on m.away_team_api_id = t.team_api_id
+group by t.team_long_name
+order by Away_win desc;
+/* barcaelona have again toped the table with most wins followed by read madrid. */ 
+
+
+
+
+
+/* total wins by team */
+with home as ( select 
+		t.team_long_name,
+		count(home_team_goal &gt; away_team_goal) as Home_win
+	from
+		match as m
+		join team as t
+		on m.home_team_api_id = t.team_api_id
+	where 
+		m.home_team_goal &gt; m.away_team_goal
+	group by t.team_long_name
+	order by Home_win desc),
+away as (
+	select 
+		t.team_long_name,
+		count(home_team_goal &lt; away_team_goal) as Away_win
+	from
+		match as m
+		join team as t
+		on m.away_team_api_id = t.team_api_id
+	where 
+		m.home_team_goal &lt; m.away_team_goal
+	group by t.team_long_name
+	order by Away_win desc)
+select 
+	away.team_long_name,
+	away.away_win,
+	home.home_win,
+	(away.away_win + home.home_win) as total_win
+from away 
+	join home 
+	on away.team_long_name = home.team_long_name
+order by total_win desc;
+/* we see barca has won most of the matches, then real madrid from 2008 to 2014. */
+
+
+
+
+
+
+
+
+/* goals scored by team away, home and total. */
+with home as (
+	select 
+		t.team_long_name || ' (' || c.name || ')' as Team_name,
+		sum(m.home_team_goal) as home_Goal
+	from match as m
+		left join Country as c
+		on m.country_id = c.id
+		left join team as t
+		on t.team_api_id = m.home_team_api_id
+	group by Team_name),
+away as (
+	select
+		t.team_long_name || ' (' || c.name || ')' as Team_name,
+		sum(m.away_team_goal) as away_Goal
+	from match as m
+		left join Country as c
+		on m.country_id = c.id
+		left join team as t
+		on t.team_api_id = m.away_team_api_id
+	group by Team_name)
+select 
+	home.team_name,
+	away.away_goal,
+	home.home_goal,
+	(away.away_goal + home.home_goal) as Total_goal
+from away 
+	left join home 
+	on home.team_name = away.team_name
+group by home.team_name
+order by Total_goal desc;
+
+
+
+
+
+					/* Thank you */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</sql><sql name="&amp;Foreign-Key Check">PRAGMA foreign_key_check;</sql><current_tab id="0"/></tab_sql></sqlb_project>
